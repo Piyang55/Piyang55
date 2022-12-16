@@ -1,0 +1,78 @@
+# เวิร์กโฟลว์นี้จะสร้างและผลักดันแอปพลิเคชัน node.js ไปยัง Azure Web App เมื่อการกระทําถูกผลักไปยังสาขาเริ่มต้นของคุณ.
+#
+# เวิร์กโฟลว์นี้ถือว่าคุณได้สร้างเว็บแอพ Azure App Service เป้าหมายแล้ว.
+# สําหรับคําแนะนําดู https://docs.microsoft.com/en-us/azure/app-service/quickstart-nodejs?tabs=linux&pivots=development-environment-cli
+#
+# ในการกําหนดค่าเวิร์กโฟลว์นี้:
+#
+# 1. ดาวน์โหลดโปรไฟล์เผยแพร่สําหรับ Azure Web App ของคุณ คุณสามารถดาวน์โหลดไฟล์นี้ได้จากหน้าภาพรวมของ Web App ของคุณใน Azure Portal.
+#    สําหรับข้อมูลเพิ่มเติม: https://docs.microsoft.com/en-us/azure/app-service/deploy-github-actions?tabs=applevel#generate-deployment-credentials
+#
+# 2. สร้างความลับในที่เก็บของคุณชื่อ A ⁇ URE_WEBAPP_PUBLISH_PROFILE วางเนื้อหาโปรไฟล์ที่เผยแพร่เป็นค่าของความลับ.
+#    สําหรับคําแนะนําเกี่ยวกับการรับโปรไฟล์การเผยแพร่ดู: https://docs.microsoft.com/azure/app-service/deploy-github-actions#configure-the-github-secret
+#
+# 3. เปลี่ยนค่าสําหรับ A ⁇ URE_WEBAPP_NAME. เลือกเปลี่ยนตัวแปรสภาพแวดล้อม A ⁇ URE_WEBAPP_PACKAGE_PATH และ NODE_VERSION ด้านล่าง.
+#
+# สําหรับข้อมูลเพิ่มเติมเกี่ยวกับ GitHub Actions for Azure: https://github.com/Azure/Actions
+# สําหรับข้อมูลเพิ่มเติมเกี่ยวกับการดําเนินการปรับใช้ Azure Web Apps: https://github.com/Azure/webapps-deploy
+# สําหรับตัวอย่างเพิ่มเติมเพื่อเริ่มต้นกับ GitHub Action workflows เพื่อปรับใช้กับ Azure: https://github.com/Azure/actions-workflow-samples
+
+บน:
+  กด:
+    สาขา: [ "main" ]
+  workflow_dispatch:
+
+env:
+  A ⁇ URE_WEBAPP_NAME: your-app-name # ตั้งค่านี้เป็นชื่อแอปพลิเคชันของคุณ
+  A ⁇ URE_WEBAPP_PACKAGE_PATH: '' # ตั้งค่านี้เป็นเส้นทางไปยังโครงการเว็บแอปของคุณค่าเริ่มต้นเป็นรูทที่เก็บ
+  NODE_VERSION: '14.x' # ตั้งค่านี้เป็นเวอร์ชันโหนดที่จะใช้
+
+การอนุญาต:
+  เนื้อหา: อ่าน
+
+งาน:
+  สร้าง:
+    รันบน: ubuntu ล่าสุด
+    ขั้นตอน:
+    - ใช้: actions / checkout @ v3
+
+    - ชื่อ: ตั้งค่า Node.js
+      ใช้: actions / setup-node @ v3
+      ด้วย:
+        โหนด-รุ่น: $ { { env.NODE_VERSION } }
+        แคช: 'npm'
+
+    - ชื่อ: npm ติดตั้งสร้างและทดสอบ
+      วิ่ง: |
+        ติดตั้ง npm
+        npm เรียกใช้บิลด์ - ถ้า - ปัจจุบัน
+        การทดสอบ npm - ถ้า - ปัจจุบัน
+
+    - ชื่อ: อัพโหลดสิ่งประดิษฐ์สําหรับงานปรับใช้
+      ใช้: actions / upload-artifact @ v3
+      ด้วย:
+        ชื่อ: node-app
+        เส้นทาง: .
+
+  ปรับใช้:
+    การอนุญาต:
+      เนื้อหา: ไม่มี
+    รันบน: ubuntu ล่าสุด
+    ต้องการ: สร้าง
+    สิ่งแวดล้อม:
+      ชื่อ: 'การพัฒนา'
+      url: $ { { steps.deploy-to-webapp.outputs.webapp-url } }
+
+    ขั้นตอน:
+    - ชื่อ: ดาวน์โหลดสิ่งประดิษฐ์จากงานสร้าง
+      ใช้: การกระทํา / ดาวน์โหลด artifact @ v3
+      ด้วย:
+        ชื่อ: node-app
+
+    - ชื่อ: 'Deploy to Azure WebApp'
+      id: ปรับใช้เป็นเว็บแอพ
+      ใช้: azure / webapps-deploy @ v2
+      ด้วย:
+        app-name: $ { { env.A ⁇ URE_WEBAPP_NAME } }
+        เผยแพร่โปรไฟล์: $ { { secret.A ⁇ URE_WEBAPP_PUBLISH_PROFILE } }
+        แพ็คเกจ: $ { { env.A ⁇ URE_WEBAPP_PACKAGE_PATH } }
